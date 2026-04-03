@@ -1,0 +1,85 @@
+.candidate-table {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ct-header {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.ct-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px 24px;
+}
+
+.ct-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ct-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--color-text-muted);
+}
+
+.ct-value {
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.ct-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ct-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.ct-link:hover {
+  text-decoration: underline;
+}
+
+.ct-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ct-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 6px;
+}
+
+.ct-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ct-summary {
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.6;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}

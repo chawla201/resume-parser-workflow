@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import datetime
+import json
 import os
 import tempfile
 import uuid
@@ -11,9 +13,9 @@ from typing import Any
 import ollama as ollama_sdk
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.db import get_candidate as _get_candidate
 from src.db import insert_candidate
 from src.extractor import extract_candidate
 from src.logging_config import REQUEST_ID, configure_logging
@@ -35,6 +37,14 @@ app = FastAPI(
     title="Resume Parser API",
     version="1.0.0",
     description="Parse resumes with a local Ollama LLM and persist candidate data.",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -168,48 +178,92 @@ async def parse_resume(
     )
 
 
-@app.get("/api/v1/candidates/{candidate_id}", summary="Retrieve a candidate by ID")
-def get_candidate(candidate_id: str) -> JSONResponse:
-    """Fetch a persisted candidate record by UUID.
+@app.get("/api/v1/candidates", summary="List all parsed candidates")
+def list_candidates(
+    limit: int = Query(20, ge=1, le=100, description="Maximum records to return."),
+    offset: int = Query(0, ge=0, description="Number of records to skip."),
+) -> JSONResponse:
+    """Return a paginated list of candidates read from JSON files in OUTPUT_DIR.
 
     Args:
-        candidate_id: UUID string of the candidate to retrieve.
+        limit: Maximum number of candidates to return (1–100).
+        offset: Number of candidates to skip for pagination.
 
     Returns:
-        JSON object with candidate fields.
+        JSON object with ``total``, ``limit``, ``offset``, and ``items`` list.
+    """
+    files = _sorted_output_files()
+    total = len(files)
+    page_files = files[offset : offset + limit]
+    items = [d for f in page_files for d in [_read_json_file(f)] if d is not None]
+    return JSONResponse(content={"total": total, "limit": limit, "offset": offset, "items": items})
+
+
+@app.get("/api/v1/candidates/{candidate_id}", summary="Retrieve a candidate by ID")
+def get_candidate(candidate_id: str) -> JSONResponse:
+    """Fetch a candidate record by its file stem (e.g. ``candidate_abc12345``).
+
+    Args:
+        candidate_id: Stem of the JSON filename in OUTPUT_DIR.
+
+    Returns:
+        JSON object with all candidate fields.
 
     Raises:
-        HTTPException 404: If no candidate with the given ID exists.
-        HTTPException 500: If the database query fails.
+        HTTPException 404: If no matching file exists.
     """
-    try:
-        row = _get_candidate(candidate_id)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
-
-    if row is None:
+    json_file = OUTPUT_DIR / f"{candidate_id}.json"
+    if not json_file.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Candidate '{candidate_id}' not found.",
         )
-
-    return JSONResponse(
-        content={
-            "id": row.id,
-            "full_name": row.full_name,
-            "email": row.email,
-            "phone": row.phone,
-            "location": row.location,
-            "linkedin_url": row.linkedin_url,
-            "github_url": row.github_url,
-            "summary": row.summary,
-        }
-    )
+    data = _read_json_file(json_file)
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to read candidate file.")
+    return JSONResponse(content=data)
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _sorted_output_files() -> list[Path]:
+    """Return all JSON files in OUTPUT_DIR sorted newest-first by modification time.
+
+    Returns:
+        List of Path objects for each ``.json`` file found.
+    """
+    if not OUTPUT_DIR.is_dir():
+        return []
+    files = list(OUTPUT_DIR.glob("*.json"))
+    files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return files
+
+
+def _read_json_file(path: Path) -> dict[str, Any] | None:
+    """Parse a candidate JSON file and return a response-safe dict.
+
+    The file stem is used as the ``id`` field; file modification time is used
+    as ``parsed_at`` since it is not stored inside the JSON.
+
+    Args:
+        path: Path to a candidate JSON file.
+
+    Returns:
+        Dict with all candidate fields, or ``None`` if the file cannot be read.
+    """
+    try:
+        data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        logger.warning("Could not read or parse %s", path)
+        return None
+    mtime = datetime.datetime.fromtimestamp(path.stat().st_mtime, tz=datetime.timezone.utc)
+    data["id"] = path.stem
+    data["parsed_at"] = mtime.isoformat()
+    data["source_filename"] = path.name
+    return data
 
 
 def _write_json_output(candidate: Any) -> Path:

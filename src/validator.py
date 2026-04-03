@@ -12,6 +12,7 @@ from src.models import CandidateSchema
 logger = logging.getLogger(__name__)
 
 PHONE_STRIP_PATTERN: re.Pattern[str] = re.compile(r"[^\d+\s]")
+LIST_FIELDS: frozenset[str] = frozenset({"skills", "languages", "education", "experience", "certifications"})
 
 
 def validate(data: dict) -> CandidateSchema:
@@ -56,5 +57,9 @@ def _normalise_fields(data: dict) -> dict:
 
     if phone := normalised.get("phone"):
         normalised["phone"] = PHONE_STRIP_PATTERN.sub("", str(phone)).strip()
+
+    for field in LIST_FIELDS:
+        if normalised.get(field) is None:
+            normalised[field] = []
 
     return normalised

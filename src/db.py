@@ -8,8 +8,8 @@ import os
 import uuid
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import sessionmaker, Session, selectinload
 
 from src.models import CandidateSchema
 from src.orm_models import CandidateRow, ResumeRow
@@ -107,6 +107,135 @@ def get_candidate(candidate_id: str) -> CandidateRow | None:
     except Exception as exc:
         logger.exception("Failed to retrieve candidate id=%s", candidate_id)
         raise RuntimeError(f"Failed to query candidate from database: {exc}") from exc
+
+
+def get_candidate_with_resume(
+    candidate_id: str,
+) -> tuple[CandidateRow, ResumeRow | None] | None:
+    """Retrieve a candidate row and its first associated resume by UUID.
+
+    Args:
+        candidate_id: UUID string of the candidate to look up.
+
+    Returns:
+        A tuple of ``(CandidateRow, ResumeRow | None)`` if found, else ``None``.
+
+    Raises:
+        RuntimeError: If the database query fails.
+    """
+    try:
+        with _SessionFactory() as session:
+            stmt = (
+                select(CandidateRow)
+                .options(selectinload(CandidateRow.resumes))
+                .where(CandidateRow.id == candidate_id)
+            )
+            row = session.execute(stmt).scalars().first()
+            if row is None:
+                return None
+            resume = row.resumes[0] if row.resumes else None
+            # Detach from session by expunging so attributes remain accessible
+            session.expunge_all()
+            return row, resume
+    except Exception as exc:
+        logger.exception("Failed to retrieve candidate id=%s", candidate_id)
+        raise RuntimeError(f"Failed to query candidate from database: {exc}") from exc
+
+
+def list_candidates(
+    limit: int = 20,
+    offset: int = 0,
+) -> list[tuple[CandidateRow, ResumeRow | None]]:
+    """Return a paginated list of candidates with their first resume.
+
+    Args:
+        limit: Maximum number of records to return.
+        offset: Number of records to skip.
+
+    Returns:
+        List of ``(CandidateRow, ResumeRow | None)`` tuples ordered by
+        ``created_at`` descending.
+
+    Raises:
+        RuntimeError: If the database query fails.
+    """
+    try:
+        with _SessionFactory() as session:
+            stmt = (
+                select(CandidateRow)
+                .options(selectinload(CandidateRow.resumes))
+                .order_by(CandidateRow.created_at.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+            rows = session.execute(stmt).scalars().all()
+            result = [(row, row.resumes[0] if row.resumes else None) for row in rows]
+            session.expunge_all()
+            return result
+    except Exception as exc:
+        logger.exception("Failed to list candidates")
+        raise RuntimeError(f"Failed to list candidates from database: {exc}") from exc
+
+
+def count_candidates() -> int:
+    """Return the total number of candidate records.
+
+    Returns:
+        Integer count of all rows in the ``candidates`` table.
+
+    Raises:
+        RuntimeError: If the database query fails.
+    """
+    try:
+        with _SessionFactory() as session:
+            total = session.execute(select(func.count()).select_from(CandidateRow)).scalar_one()
+            return int(total)
+    except Exception as exc:
+        logger.exception("Failed to count candidates")
+        raise RuntimeError(f"Failed to count candidates in database: {exc}") from exc
+
+
+def _deserialise_array(value: object) -> list[str]:
+    """Deserialise an array value from storage.
+
+    Converts a JSON string (SQLite) or native list (Postgres) to a Python list.
+
+    Args:
+        value: A JSON string or list of strings, or ``None``.
+
+    Returns:
+        A list of strings. Returns an empty list if value is ``None`` or empty.
+    """
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    try:
+        parsed = json.loads(value)
+        return parsed if isinstance(parsed, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def _deserialise_json(value: object) -> list:
+    """Deserialise a JSON value from storage.
+
+    Converts a JSON string (SQLite) or native object (Postgres) to a Python object.
+
+    Args:
+        value: A JSON string or already-parsed object, or ``None``.
+
+    Returns:
+        Parsed Python object, or an empty list if value is ``None``.
+    """
+    if value is None:
+        return []
+    if isinstance(value, (list, dict)):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 
 def _serialise_array(values: list[str]) -> object:

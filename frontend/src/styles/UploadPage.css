@@ -1,0 +1,21 @@
+.upload-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.upload-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.upload-subtitle {
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.upload-result {
+  border-top: 1px solid var(--color-border);
+  padding-top: 24px;
+}
