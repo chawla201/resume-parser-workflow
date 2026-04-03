@@ -1,0 +1,18 @@
+{
+  "full_name": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "phone": "+1 415 555 0198",
+  "location": "San Francisco, CA",
+  "linkedin_url": null,
+  "github_url": null,
+  "summary": null,
+  "skills": [
+    "Python"
+  ],
+  "languages": [
+    "English"
+  ],
+  "education": [],
+  "experience": [],
+  "certifications": []
+}

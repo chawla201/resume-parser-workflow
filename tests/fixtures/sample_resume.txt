@@ -1,0 +1,40 @@
+Jane Doe
+jane.doe@example.com | +1 (415) 555-0198 | San Francisco, CA
+linkedin.com/in/janedoe | github.com/janedoe
+
+SUMMARY
+Senior software engineer with 8 years of experience building scalable backend systems
+in Python and Go. Passionate about distributed systems and open-source tooling.
+
+SKILLS
+Python, Go, Kubernetes, PostgreSQL, Redis, Kafka, Docker, Terraform, AWS
+
+LANGUAGES
+English (native), Spanish (conversational)
+
+EXPERIENCE
+
+Senior Software Engineer — Acme Corp, San Francisco, CA
+2021-03 – Present
+- Led re-architecture of the payments service, reducing p99 latency by 40%.
+- Mentored a team of 4 junior engineers.
+- Introduced feature flags system using LaunchDarkly.
+
+Software Engineer — Beta Systems, New York, NY
+2018-06 – 2021-02
+- Built data pipeline processing 500k events/day using Kafka and Flink.
+- Improved CI build times by 60% through parallelisation and caching.
+
+EDUCATION
+
+University of California, Berkeley
+B.S. Computer Science, 2018
+2014 – 2018
+
+CERTIFICATIONS
+
+AWS Certified Solutions Architect – Associate
+Amazon Web Services, 2022
+
+Certified Kubernetes Administrator (CKA)
+Cloud Native Computing Foundation, 2023
